@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Scrub</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:         #0a0a0a;
+    --border:     #1e1e1e;
+    --accent:     #e8d5a3;
+    --accent-dim: #a89565;
+    --text:       #d4d4d4;
+    --text-dim:   #555;
+    --red:        #c0392b;
+    --green:      #27ae60;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 22px 40px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .tagline {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .badges {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .badge.live {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .badge.soon { opacity: 0.35; }
+
+  #refresh-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    background: transparent;
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  #refresh-btn:hover:not(:disabled) { background: var(--accent); color: var(--bg); }
+  #refresh-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    padding: 12px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .filter-btn.active { border-color: var(--accent-dim); color: var(--accent); background: rgba(232,213,163,0.06); }
+
+  /* ── MAIN ── */
+  main { padding: 36px 40px; max-width: 1080px; }
+
+  .status-bar {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .dot.loading { background: var(--accent); animation: pulse 1s infinite; }
+  .dot.ok      { background: var(--green); }
+  .dot.error   { background: var(--red); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  /* ── BUCKETS ── */
+  .bucket { margin-bottom: 44px; }
+
+  .bucket-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .bucket-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+
+  .bucket-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* ── ARTICLE ROWS ── */
+  .article-row {
+    display: grid;
+    grid-template-columns: 72px 1fr 140px 56px;
+    gap: 14px;
+    align-items: start;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    opacity: 0;
+    transform: translateY(5px);
+    animation: fadeUp 0.25s forwards;
+  }
+
+  @keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+
+  .art-source {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding-top: 2px;
+  }
+  .art-source.wsj       { color: #7eb8d4; }
+  .art-source.ft        { color: #f0a500; }
+  .art-source.bloomberg { color: #7ccdbb; }
+  .art-source.nyt       { color: #a0a0a0; }
+
+  .art-title a {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13.5px;
+    line-height: 1.5;
+    font-weight: 400;
+    transition: color 0.1s;
+  }
+  .art-title a:hover { color: var(--accent); }
+
+  .art-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-top: 3px;
+    align-items: flex-start;
+  }
+
+  .art-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.1s;
+    white-space: nowrap;
+  }
+  .art-tag:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .art-tag.opinion { border-color: #6a4; color: #6a4; }
+
+  .art-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    text-align: right;
+    padding-top: 3px;
+    white-space: nowrap;
+  }
+  .art-time.fresh { color: var(--green); }
+
+  /* ── FOOTER ── */
+  .footer {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    line-height: 1.7;
+  }
+
+  .empty, .error-msg {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 20px 0;
+    line-height: 1.8;
+  }
+  .empty   { color: var(--text-dim); }
+  .error-msg { color: var(--red); }
+
+  /* ── SETUP BANNER ── */
+  .setup-banner {
+    background: rgba(232,213,163,0.06);
+    border: 1px solid var(--accent-dim);
+    border-radius: 3px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    line-height: 1.9;
+    color: var(--text);
+  }
+  .setup-banner strong { color: var(--accent); }
+  .setup-banner code {
+    background: rgba(255,255,255,0.07);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+  }
+  .setup-banner a { color: var(--accent-dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DAILY SCRUB</div>
+  <div class="tagline">business & markets</div>
+  <div class="badges">
+    <span class="badge live">WSJ</span>
+    <span class="badge live">FT</span>
+    <span class="badge live">Bloomberg</span>
+    <span class="badge live">NYT</span>
+    <span class="badge soon">Athletic</span>
+  </div>
+  <button id="refresh-btn" onclick="runScrub()">↻ RELOAD</button>
+</header>
+
+<div class="filter-bar" id="filter-bar">
+  <button class="filter-btn active" data-bucket="all" onclick="filterBucket(this)">All</button>
+</div>
+
+<main>
+  <div class="status-bar">
+    <span class="dot" id="dot"></span>
+    <span id="status">Ready</span>
+  </div>
+  <div id="output"></div>
+</main>
+
+<script>
+// ─── CONFIGURE: your GitHub Pages URL ───────────────────────────────────────
+//
+// After you set up the repo and enable GitHub Pages, this points at the
+// feeds.json file that the GitHub Action generates.
+// Format: https://YOUR-GITHUB-USERNAME.github.io/YOUR-REPO-NAME/feeds.json
+//
+const FEEDS_URL = 'feeds.json';  // works locally AND on GitHub Pages (same-origin)
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── TAG DEFINITIONS ─────────────────────────────────────────────────────────
+// Multi-tag system: each article gets an array of tags.
+// Filter bar is additive single-select (show all articles with this tag).
+// Tags are ordered for display in filter bar.
+
+const TAGS = [
+  { id: 'opinion',   name: 'Opinion'               },
+  { id: 'politics',  name: 'Politics'               },
+  { id: 'us',        name: 'U.S.'                   },
+  { id: 'world',     name: 'World'                  },
+  { id: 'economy',   name: 'Economy'                },
+  { id: 'finance',   name: 'Markets'                },
+  { id: 'deals',     name: 'M&A'                    },
+  { id: 'tech',      name: 'Tech & AI'              },
+  { id: 'media',     name: 'Media Business'         },
+  { id: 'sportsbiz', name: 'Sports Business'        },
+  { id: 'sports',    name: 'Sports'                 },
+  { id: 'energy',    name: 'Energy & Climate'       },
+  { id: 'health',    name: 'Health & Science'       },
+  { id: 'consumer',  name: 'Consumer & Retail'      },
+  { id: 'business',  name: 'Business'               },
+  { id: 'culture',   name: 'Arts & Culture'         },
+];
+
+const TAG_MAP = {};
+TAGS.forEach(t => TAG_MAP[t.id] = t.name);
+
+// ─── FEED → TAGS MAP ─────────────────────────────────────────────────────────
+// Each feed maps to one or more tag ids.
+// Multi-tag captures cross-cutting stories naturally.
+
+const FEED_TAGS = {
+  // WSJ
+  'wsj-business':    ['business'],
+  'wsj-markets':     ['finance'],
+  'wsj-tech':        ['tech'],
+  'wsj-world':       ['world'],
+  'wsj-us':          ['us', 'politics'],
+  'wsj-politics':    ['us', 'politics'],
+  'wsj-opinion':     ['opinion'],
+  'wsj-sports':      ['sports'],
+  'wsj-style':       ['culture'],
+  'wsj-health':      ['health'],
+  'wsj-personalfin': ['finance', 'consumer'],
+  'wsj-realestate':  ['consumer', 'economy'],
+  'wsj-artsculture': ['culture'],
+  'wsj-economy':     ['economy'],
+  'wsj-lifestyle':   ['culture'],
+
+  // FT (9 active feeds)
+  'ft-world':    ['world'],
+  'ft-economy':  ['economy'],
+  'ft-emerging': ['world', 'economy'],
+  'ft-markets':  ['finance'],
+  'ft-tech':     ['tech'],
+  'ft-energy':   ['energy', 'business'],
+  'ft-climate':  ['energy'],
+  'ft-opinion':  ['opinion'],
+  'ft-careers':  ['business'],
+
+  // Bloomberg
+  'bb-markets':    ['finance'],
+  'bb-tech':       ['tech'],
+  'bb-politics':   ['politics'],
+  'bb-industries': null,  // fallback
+  'bb-wealth':     ['finance', 'business'],
+  'bb-economics':  ['economy'],
+  'bb-green':      ['energy'],
+  'bb-crypto':     ['finance', 'tech'],
+
+  // NYT (16 active feeds)
+  'nyt-home':     null,  // fallback — aggregate, keyword classify
+  'nyt-world':    ['world'],
+  'nyt-us':       ['us', 'politics'],
+  'nyt-politics': ['us', 'politics'],
+  'nyt-business': ['business'],
+  'nyt-economy':  ['economy'],
+  'nyt-dealbook': ['deals', 'finance', 'business'],
+  'nyt-media':    ['media', 'business'],
+  'nyt-tech':     ['tech'],
+  'nyt-science':  ['health'],
+  'nyt-health':   ['health'],
+  'nyt-sports':   ['sports'],
+  'nyt-arts':     ['culture'],
+  'nyt-opinion':  ['opinion'],
+  'nyt-obits':    ['culture'],
+  'nyt-magazine': ['culture'],
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let allArticles = [];
+let activeTag   = 'all';
+
+// ─── CLASSIFY — returns array of tag ids ─────────────────────────────────────
+// Primary: feed → tags lookup (deterministic, covers ~95% of articles).
+// Fallback: keyword scan for aggregate feeds (ft-home, ft-companies, bb-industries, nyt-home).
+// Returns at minimum ['other'] — never empty.
+
+const FALLBACK_RULES = [
+  // Opinion first — clear signal
+  { id: 'opinion',   kw: ['opinion:', 'op-ed', 'columnist', 'editorial:'] },
+  // Culture — reviews/awards/obits before they bleed into business
+  { id: 'culture',   kw: ['review:', 'film review', 'book review', 'album review', 'oscar', 'academy award', 'grammy', 'emmy', 'cannes', 'sundance', 'obituary', 'died at ', 'passed away', 'best picture', 'competing for oscars', 'movie review', 'theater review'] },
+  { id: 'sportsbiz', kw: ['team sale', 'franchise value', 'naming rights', 'stadium deal', 'sports rights', 'salary cap', 'sports betting', 'nil deal', 'jersey sponsorship', 'broadcast deal', 'league expansion'] },
+  { id: 'sports',    kw: ['super bowl', 'world series', 'stanley cup', 'wimbledon', 'champions league', 'world cup', 'olympics', 'playoff', 'championship game', 'nfl draft', 'nba draft', 'game recap'] },
+  { id: 'deals',     kw: ['acqui', 'merger', 'takeover', 'buyout', 'ipo ', 'spin-off', 'spinoff', 'divestiture', 'agreed to buy', 'going private', 'deal valued', 'bid for'] },
+  { id: 'finance',   kw: ['stock market', 'bond yield', 'interest rate', 'hedge fund', 'share price', 'market cap', 'wall street', 'federal reserve', 'fed rate', 'bitcoin', 'cryptocurrency', 's&p 500', 'nasdaq', 'earnings beat', 'earnings miss', 'quarterly profit', 'quarterly loss', 'private equity', 'asset manager'] },
+  { id: 'economy',   kw: ['gdp', 'recession', 'inflation rate', 'unemployment rate', 'labor market', 'trade deficit', 'trade war', 'tariff', 'monetary policy', 'fiscal policy', 'cost of living', 'economic growth', 'consumer price', 'producer price'] },
+  { id: 'media',     kw: ['streaming service', 'broadcast rights', 'media rights', 'advertising revenue', 'netflix earnings', 'box office revenue', 'content budget', 'cord cutting', 'media company', 'espn deal', 'record label'] },
+  { id: 'tech',      kw: ['artificial intelligence', 'ai chip', 'ai model', 'ai startup', 'nvidia', 'semiconductor', 'machine learning', 'silicon valley', 'cybersecurity', 'data breach', 'openai', 'chatgpt', 'large language model', 'cloud computing', 'software company'] },
+  { id: 'energy',    kw: ['oil price', 'crude oil', 'opec', 'natural gas price', 'renewable energy', 'climate change', 'net zero', 'carbon emission', 'solar energy', 'wind power', 'energy transition', 'lng ', 'oil major'] },
+  { id: 'health',    kw: ['fda approval', 'clinical trial', 'drug approval', 'vaccine ', 'hospital system', 'health care costs', 'biotech ', 'pandemic', 'cancer drug', 'pharma company', 'drug maker', 'weight loss drug'] },
+  { id: 'consumer',  kw: ['retail chain', 'luxury goods', 'e-commerce', 'home price', 'housing market', 'real estate market', 'vehicle recall', 'consumer spending', 'department store', 'restaurant chain'] },
+  { id: 'politics',  kw: ['white house', 'congress', 'senate ', 'supreme court', 'presidential election', 'executive order', 'legislation ', 'house of representatives', 'trump administration', 'biden administration', 'doj ', 'ftc ruling', 'sec ruling'] },
+  { id: 'world',     kw: ['ukraine', 'russia ', 'taiwan strait', 'iran nuclear', 'israel ', 'nato ', 'ceasefire', 'geopolit', 'foreign minister', 'prime minister', 'g20 ', 'g7 ', 'imf ', 'emerging market'] },
+  { id: 'us',        kw: ['u.s. economy', 'u.s. market', 'u.s. government', 'american worker', 'u.s. trade', 'washington d.c.'] },
+  { id: 'business',  kw: ['chief executive', 'ceo of', 'layoff', 'job cut', 'bankruptcy', 'restructuring', 'board of directors', 'annual report', 'quarterly earnings', 'profit warning', 'revenue miss', 'cost cut', 'workforce reduction', 'company reports'] },
+];
+
+function classify(title, feeds) {
+  // feeds is now an array — collect tags from every feed the article appeared in
+  const tags = new Set();
+
+  for (const feed of (feeds || [])) {
+    const mapped = FEED_TAGS[feed];
+    if (mapped) mapped.forEach(t => tags.add(t));
+    // null means fallback — handled below
+  }
+
+  // If any feed gave us tags, use them (possibly merged from multiple feeds)
+  if (tags.size > 0) return Array.from(tags);
+
+  // Keyword fallback — for aggregate feeds (ft-home, ft-companies, bb-industries, nyt-home)
+  // or any article where no feed mapping exists
+  const t = ' ' + title.toLowerCase() + ' ';
+  const fallbackTags = [];
+  for (const { id, kw } of FALLBACK_RULES) {
+    if (kw.some(k => t.includes(k))) fallbackTags.push(id);
+  }
+  return fallbackTags.length ? fallbackTags : ['business'];
+}
+
+// ─── TIME ─────────────────────────────────────────────────────────────────────
+function hoursAgo(iso) { return (Date.now() - new Date(iso)) / 3600000; }
+function fmtAge(iso) {
+  const h = hoursAgo(iso);
+  if (h < 1)  return `${Math.round(h*60)}m`;
+  if (h < 24) return `${Math.round(h)}h`;
+  return `${Math.round(h/24)}d`;
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render() {
+  const filtered = activeTag === 'all'
+    ? allArticles
+    : allArticles.filter(a => a._tags.includes(activeTag));
+
+  if (!filtered.length) {
+    document.getElementById('output').innerHTML =
+      `<div class="empty">No articles match this tag.</div>`;
+    return;
+  }
+
+  // When "all" is selected: group by primary tag (first in array) for section headers.
+  // When a specific tag is selected: flat chronological list, no grouping.
+  let html = '';
+
+  if (activeTag === 'all') {
+    html += renderSection(null, filtered);
+    html += `<div class="footer">${filtered.length} articles · WSJ · FT · Bloomberg · NYT</div>`;
+
+  } else {
+    // Flat list under selected tag name
+    const tag = TAGS.find(t => t.id === activeTag) || { name: activeTag };
+    html += renderSection(tag.name, filtered);
+    html += `<div class="footer">${filtered.length} articles tagged "${tag.name}"</div>`;
+  }
+
+  document.getElementById('output').innerHTML = html;
+}
+
+function renderSection(name, items) {
+  const header = name ? `<div class="bucket-header">
+      <span class="bucket-name">${name}</span>
+      <span class="bucket-count">${items.length}</span>
+    </div>` : '';
+
+  let html = `<div class="bucket">${header}<div>`;
+
+  items.forEach((a, i) => {
+    const srcClass = a.source.toLowerCase().replace(' ', '');
+    const fresh = hoursAgo(a.pub_date) < 12;
+    const isOpinion = a._tags.includes('opinion');
+
+    // Build tag pills — show all tags except primary (to avoid redundancy in grouped view)
+    const tagPills = a._tags
+      .map(id => `<span class="art-tag${id==='opinion'?' opinion':''}" onclick="selectTag('${id}')">${TAG_MAP[id]||id}</span>`)
+      .join('');
+
+    html += `<div class="article-row" style="animation-delay:${i*30}ms">
+      <div class="art-source ${srcClass}">${a.source}</div>
+      <div class="art-title"><a href="${a.link}" target="_blank" rel="noopener">${a.title}</a></div>
+      <div class="art-tags">${tagPills}</div>
+      <div class="art-time${fresh?' fresh':''}">${fmtAge(a.pub_date)}</div>
+    </div>`;
+  });
+
+  return html + '</div></div>';
+}
+
+// ─── FILTER ───────────────────────────────────────────────────────────────────
+function selectTag(tagId) {
+  activeTag = tagId;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tag === tagId);
+  });
+  render();
+}
+
+function filterBucket(btn) {
+  activeTag = btn.dataset.tag;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function buildFilterBar(articles) {
+  // Count articles per tag (articles with multiple tags count once per tag)
+  const counts = {};
+  TAGS.forEach(t => counts[t.id] = 0);
+  counts['other'] = 0;
+  articles.forEach(a => a._tags.forEach(tag => {
+    if (counts[tag] !== undefined) counts[tag]++;
+    else counts['other']++;
+  }));
+
+  let html = `<button class="filter-btn active" data-tag="all" onclick="filterBucket(this)">All (${articles.length})</button>`;
+  for (const t of TAGS) {
+    if (!counts[t.id]) continue;
+    html += `<button class="filter-btn" data-tag="${t.id}" onclick="filterBucket(this)">${t.name} <span style="opacity:.5">${counts[t.id]}</span></button>`;
+  }
+  if (counts['other']) {
+    html += `<button class="filter-btn" data-tag="other" onclick="filterBucket(this)">Other <span style="opacity:.5">${counts['other']}</span></button>`;
+  }
+  document.getElementById('filter-bar').innerHTML = html;
+}
+
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
+async function runScrub() {
+  const dot    = document.getElementById('dot');
+  const status = document.getElementById('status');
+  const btn    = document.getElementById('refresh-btn');
+  const output = document.getElementById('output');
+
+  dot.className = 'dot loading';
+  status.textContent = 'Loading feeds…';
+  btn.disabled = true;
+  output.innerHTML = '';
+
+  try {
+    // feeds.json is generated by the GitHub Action (fetch_feeds.py)
+    // and served as a static file alongside this index.html
+    const resp = await fetch(FEEDS_URL + '?t=' + Date.now()); // cache-bust
+    if (!resp.ok) throw new Error(`feeds.json not found (HTTP ${resp.status}). Run the GitHub Action first.`);
+    const data = await resp.json();
+
+    const articles = (data.items || []).filter(a => a.link && a.title);
+
+    // Attach multi-tag classification
+    articles.forEach(a => a._tags = classify(a.title, a.feeds));
+
+    allArticles = articles;
+    buildFilterBar(articles);
+
+    const fetched = data.fetched_at
+      ? new Date(data.fetched_at).toLocaleString()
+      : 'unknown';
+
+    dot.className = 'dot ok';
+    status.textContent = `${articles.length} articles · last fetched ${fetched}`;
+    render();
+  } catch (err) {
+    dot.className = 'dot error';
+    status.textContent = `Error: ${err.message}`;
+    output.innerHTML = `<div class="error-msg">${err.message}<br><br>
+      Go to your GitHub repo → Actions tab → "Fetch RSS Feeds" → Run workflow.</div>`;
+    console.error(err);
+  }
+
+  btn.disabled = false;
+}
+
+runScrub();
+</script>
+</body>
+</html>
